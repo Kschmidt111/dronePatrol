@@ -1,0 +1,61 @@
+# Markdown (local planning notes)
+*.md
+
+# Build outputs
+build/
+bin/
+obj/
+out/
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dylib
+*.dll
+*.exe
+*.out
+*.app
+*.pdb
+*.ilk
+*.exp
+*.idb
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+CTestTestfile.cmake
+_deps/
+cmake-build-*/
+
+# IDE / editor
+.vs/
+.vscode/
+*.user
+*.suo
+*.sdf
+*.opensdf
+.idea/
+*.code-workspace
+*~
+
+# Secrets & local config
+.env
+*.env
+!config.example.env
+config.local.*
+
+# Models / media (large local assets)
+*.onnx
+*.pt
+*.weights
+*.mp4
+*.avi
+*.mkv
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
