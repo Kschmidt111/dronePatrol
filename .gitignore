@@ -3,7 +3,8 @@
 *.mdc
 # Local tools (MediaMTX binaries, etc.)
 tools/
-
+models/
+.pt
 # IDE OpenCV header junction (local only)
 deps/
 
