@@ -1,5 +1,11 @@
 # Markdown (local planning notes)
 *.md
+*.mdc
+# Local tools (MediaMTX binaries, etc.)
+tools/
+
+# IDE OpenCV header junction (local only)
+deps/
 
 # Build outputs
 build/
@@ -26,9 +32,16 @@ CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
 compile_commands.json
+compile_flags.txt
+**/compile_flags.txt
 CTestTestfile.cmake
 _deps/
 cmake-build-*/
+
+# vcpkg (local install tree — keep only vcpkg.json in git)
+vcpkg_installed/
+vcpkg-running.lock
+
 
 # IDE / editor
 .vs/

@@ -1,0 +1,9 @@
+CompileFlags:
+  Add:
+    - -std=c++23
+    - -IC:/Users/schm3/OneDrive/Desktop/dronePatrol/deps/include
+  Remove:
+    - -std=c++14
+    - -std=c++17
+    - /std:c++14
+    - /std:c++17
