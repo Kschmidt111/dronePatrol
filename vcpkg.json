@@ -5,6 +5,7 @@
     {
       "name": "opencv",
       "features": ["ffmpeg"]
-    }
+    },
+    "curl"
   ]
 }

@@ -7,17 +7,19 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(OpenCV REQUIRED COMPONENTS core imgproc videoio highgui dnn)
+find_package(CURL REQUIRED)
 
 add_executable(dronePatrol
     src/main.cpp
     src/capture.cpp
     src/detector.cpp
+    src/alert.cpp
 )
 
 target_include_directories(dronePatrol PRIVATE include)
-target_link_libraries(dronePatrol PRIVATE ${OpenCV_LIBS})
+target_link_libraries(dronePatrol PRIVATE ${OpenCV_LIBS} CURL::libcurl)
 
-# Copy OpenCV / FFmpeg DLLs next to the exe on Windows (CMake 3.21+).
+# Copy OpenCV / FFmpeg / curl DLLs next to the exe on Windows (CMake 3.21+).
 if(WIN32)
     add_custom_command(TARGET dronePatrol POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different

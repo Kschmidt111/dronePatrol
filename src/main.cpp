@@ -4,6 +4,7 @@
 #include <iostream>
 #include <memory>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -11,6 +12,7 @@
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
 
+#include "alert.hpp"
 #include "capture.hpp"
 #include "detector.hpp"
 
@@ -90,6 +92,15 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
+    DiscordAlert alerts;
+    if (alerts.ready()) {
+        if (!alerts.send("dronePatrol online (test message)")) {
+            std::cerr << "Discord test send failed or cooldown blocked it.\n";
+        }
+    } else {
+        std::cerr << "Discord alerts disabled (check .env).\n";
+    }
+
     cv::namedWindow(std::string{kWindowName}, cv::WINDOW_NORMAL);
 
     cv::Mat frame;
@@ -101,6 +112,21 @@ int main(int argc, char* argv[]) {
 
         const std::vector<Detection> detections = detector->detect(frame);
         detector->draw(frame, detections);
+
+        if (!detections.empty()) {
+            std::ostringstream alertText;
+            alertText << "Detected: ";
+            bool first = true;
+            for (const Detection& det : detections) {
+                if (!first) {
+                    alertText << ", ";
+                }
+                first = false;
+                alertText << det.label << " ("
+                          << static_cast<int>(det.confidence * 100.f) << "%)";
+            }
+            (void)alerts.send(alertText.str());
+        }
 
         for (const Detection& det : detections) {
             std::cout << det.label << " " << det.confidence << '\n';
