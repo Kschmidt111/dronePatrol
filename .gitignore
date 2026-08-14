@@ -8,6 +8,16 @@ models/
 # IDE OpenCV header junction (local only)
 deps/
 
+# Local desktop app (Win32 UI, launchers, private — do not publish)
+Start-*.bat
+include/app_ui.hpp
+src/app_ui.cpp
+include/paths.hpp
+src/paths.cpp
+auto.crt
+auto.key
+*.lnk
+
 # Build outputs
 build/
 bin/
