@@ -4,6 +4,7 @@
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
+#include <string_view>
 
 #include <opencv2/imgproc.hpp>
 
@@ -63,15 +64,65 @@ AnimalDetector::AnimalDetector(std::string modelPath, std::string namesPath)
     std::cout << "Tracking " << allowedClassIds_.size() << " animal labels.\n";
 }
 
+AnimalDetector::Letterbox AnimalDetector::letterbox(const cv::Mat& frame) const {
+    Letterbox out;
+    const float gain = std::min(
+        static_cast<float>(kInputWidth) / static_cast<float>(frame.cols),
+        static_cast<float>(kInputHeight) / static_cast<float>(frame.rows));
+
+    const int resizedW = std::max(1, static_cast<int>(std::round(frame.cols * gain)));
+    const int resizedH = std::max(1, static_cast<int>(std::round(frame.rows * gain)));
+    const float padX = (static_cast<float>(kInputWidth) - static_cast<float>(resizedW)) * 0.5f;
+    const float padY = (static_cast<float>(kInputHeight) - static_cast<float>(resizedH)) * 0.5f;
+
+    cv::Mat resized;
+    cv::resize(frame, resized, cv::Size(resizedW, resizedH), 0, 0, cv::INTER_LINEAR);
+
+    // Ultralytics-style gray pad (114) so aspect ratio is preserved without stretch.
+    out.image = cv::Mat(kInputHeight, kInputWidth, frame.type(), cv::Scalar(114, 114, 114));
+    const int left = static_cast<int>(std::round(padX - 0.1f));
+    const int top = static_cast<int>(std::round(padY - 0.1f));
+    resized.copyTo(out.image(cv::Rect(left, top, resizedW, resizedH)));
+
+    out.gain = gain;
+    out.padX = static_cast<float>(left);
+    out.padY = static_cast<float>(top);
+    return out;
+}
+
+cv::Rect AnimalDetector::mapBoxToFrame(
+    float cx,
+    float cy,
+    float w,
+    float h,
+    const Letterbox& lb,
+    int frameCols,
+    int frameRows) const {
+    // Model space (letterboxed 640) -> original frame pixels.
+    const float x1 = (cx - w * 0.5f - lb.padX) / lb.gain;
+    const float y1 = (cy - h * 0.5f - lb.padY) / lb.gain;
+    const float x2 = (cx + w * 0.5f - lb.padX) / lb.gain;
+    const float y2 = (cy + h * 0.5f - lb.padY) / lb.gain;
+
+    const int left = std::clamp(static_cast<int>(std::round(x1)), 0, frameCols - 1);
+    const int top = std::clamp(static_cast<int>(std::round(y1)), 0, frameRows - 1);
+    const int right = std::clamp(static_cast<int>(std::round(x2)), 0, frameCols);
+    const int bottom = std::clamp(static_cast<int>(std::round(y2)), 0, frameRows);
+
+    return cv::Rect(left, top, std::max(0, right - left), std::max(0, bottom - top));
+}
+
 std::vector<Detection> AnimalDetector::detect(const cv::Mat& frame) const {
     std::vector<Detection> results;
     if (frame.empty()) {
         return results;
     }
 
+    const Letterbox lb = letterbox(frame);
+
     cv::Mat blob;
     cv::dnn::blobFromImage(
-        frame,
+        lb.image,
         blob,
         1.0 / 255.0,
         cv::Size(kInputWidth, kInputHeight),
@@ -79,12 +130,10 @@ std::vector<Detection> AnimalDetector::detect(const cv::Mat& frame) const {
         true,
         false);
 
-    // Net::forward isn't const in OpenCV; local copy keeps detect() logically const.
-    cv::dnn::Net net = net_;
-    net.setInput(blob);
+    net_.setInput(blob);
 
     std::vector<cv::Mat> outputs;
-    net.forward(outputs, net.getUnconnectedOutLayersNames());
+    net_.forward(outputs, net_.getUnconnectedOutLayersNames());
     if (outputs.empty()) {
         return results;
     }
@@ -96,9 +145,6 @@ std::vector<Detection> AnimalDetector::detect(const cv::Mat& frame) const {
     cv::Mat pred(numAttrs, numProposals, CV_32F, output.ptr<float>());
     cv::Mat predictions;
     cv::transpose(pred, predictions);  // [numProposals, 4+numClasses]
-
-    const float scaleX = static_cast<float>(frame.cols) / static_cast<float>(kInputWidth);
-    const float scaleY = static_cast<float>(frame.rows) / static_cast<float>(kInputHeight);
 
     std::vector<int> classIds;
     std::vector<float> confidences;
@@ -125,19 +171,21 @@ std::vector<Detection> AnimalDetector::detect(const cv::Mat& frame) const {
             continue;
         }
 
-        const float cx = row[0] * scaleX;
-        const float cy = row[1] * scaleY;
-        const float w = row[2] * scaleX;
-        const float h = row[3] * scaleY;
-
-        const int left = std::max(0, static_cast<int>(cx - w * 0.5f));
-        const int top = std::max(0, static_cast<int>(cy - h * 0.5f));
-        const int width = static_cast<int>(w);
-        const int height = static_cast<int>(h);
+        const cv::Rect box = mapBoxToFrame(
+            row[0],
+            row[1],
+            row[2],
+            row[3],
+            lb,
+            frame.cols,
+            frame.rows);
+        if (box.width <= 0 || box.height <= 0) {
+            continue;
+        }
 
         classIds.push_back(bestClass);
         confidences.push_back(bestScore);
-        boxes.emplace_back(left, top, width, height);
+        boxes.push_back(box);
     }
 
     std::vector<int> keep;

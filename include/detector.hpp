@@ -19,11 +19,30 @@ class AnimalDetector {
 public:
     AnimalDetector(std::string modelPath, std::string namesPath);
 
+    // const for callers: OpenCV's Net::forward is non-const, so net_ is mutable.
     [[nodiscard]] std::vector<Detection> detect(const cv::Mat& frame) const;
     void draw(cv::Mat& frame, const std::vector<Detection>& detections) const;
 
 private:
-    cv::dnn::Net net_;
+    struct Letterbox {
+        cv::Mat image;   // padded kInputW x kInputH BGR
+        float gain = 1.f;
+        float padX = 0.f;
+        float padY = 0.f;
+    };
+
+    [[nodiscard]] Letterbox letterbox(const cv::Mat& frame) const;
+    [[nodiscard]] cv::Rect mapBoxToFrame(
+        float cx,
+        float cy,
+        float w,
+        float h,
+        const Letterbox& lb,
+        int frameCols,
+        int frameRows) const;
+
+    // Mutable: cv::dnn::Net::setInput/forward are non-const APIs.
+    mutable cv::dnn::Net net_;
     std::vector<std::string> classNames_;
     std::unordered_set<int> allowedClassIds_;
 
